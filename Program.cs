@@ -9,20 +9,15 @@ var builder = WebApplication.CreateBuilder(args);
 
 #region SERVICES
 
-// 🔹 Controllers
 builder.Services.AddControllers();
 
-// 🔹 DbContext
+// 🔹 Database
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
 
-// 🔐 JWT AUTHENTICATION (THIS FIXES YOUR ERROR)
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
+// 🔐 JWT Authentication
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
@@ -40,30 +35,28 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// 🔹 CORS (for Swagger + Flutter)
+// 🌐 CORS (required for Flutter mobile)
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
-        policy =>
-        {
-            policy.AllowAnyOrigin()
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        });
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
 });
 
-// 🔹 Swagger + JWT Support
+// 📄 Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "Guardify API",
-        Version = "v1",
-        Description = "Visitor Management System API"
+        Version = "v1"
     });
 
-    // 🔐 JWT AUTH IN SWAGGER
+    // JWT support in Swagger
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -71,7 +64,7 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Enter: Bearer {your JWT token}"
+        Description = "Enter: Bearer {your token}"
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -94,7 +87,7 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-#region SEEDER
+#region SEEDER (optional but safe)
 
 using (var scope = app.Services.CreateScope())
 {
@@ -106,19 +99,12 @@ using (var scope = app.Services.CreateScope())
 
 #region PIPELINE
 
-// 🔹 Swagger
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// Swagger always ON (useful for Render testing)
+app.UseSwagger();
+app.UseSwaggerUI();
 
-app.UseHttpsRedirection();
-
-// 🔹 CORS
 app.UseCors("AllowAll");
 
-// 🔐 IMPORTANT ORDER (MUST BE THIS)
 app.UseAuthentication();
 app.UseAuthorization();
 
